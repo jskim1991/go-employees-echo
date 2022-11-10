@@ -1,14 +1,19 @@
 package main
 
 import (
-	"employees-echo/handlers"
+	"employees-echo/controller"
 	"employees-echo/repository"
 	"github.com/labstack/echo/v4"
 )
 
 func main() {
-	defaultRepository := repository.DefaultRepository{}
-	handler := handlers.Handler{
+	db := repository.ConnectDB()
+	defer db.Close()
+
+	defaultRepository := repository.DefaultRepository{
+		DB: db,
+	}
+	handler := controller.Controller{
 		Repository: &defaultRepository,
 	}
 
@@ -16,5 +21,5 @@ func main() {
 
 	e.GET("/employees", handler.GetAllEmployees)
 
-	e.Start(":8080")
+	e.Logger.Fatal(e.Start(":8080"))
 }

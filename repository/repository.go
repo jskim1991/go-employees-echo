@@ -1,24 +1,52 @@
 package repository
 
-import "employees-echo/models"
+import (
+	"database/sql"
+	"employees-echo/models"
+	"log"
+
+	_ "github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/pgconn"
+	_ "github.com/jackc/pgx/v5/stdlib"
+)
 
 type Repository interface {
 	FindAll() []models.Employee
 }
 
 type DefaultRepository struct {
+	DB *sql.DB
+}
+
+func ConnectDB() *sql.DB {
+	db, err := sql.Open("pgx", "host=localhost port=5432 dbname=test user=postgres password=")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if err = db.Ping(); err != nil {
+		log.Fatalln(err)
+	}
+	return db
 }
 
 func (m *DefaultRepository) FindAll() []models.Employee {
-	var result []models.Employee
+	var employees []models.Employee
 
-	employee := models.Employee{
-		Id:     "1",
-		Name:   "Jay",
-		Salary: "100",
-		Age:    "30",
+	query := `select id, name, salary, age from employee`
+	rows, err := m.DB.Query(query)
+	if err != nil {
+		log.Println(err)
 	}
-	result = append(result, employee)
 
-	return result
+	for rows.Next() {
+		var e models.Employee
+		err := rows.Scan(&e.Id, &e.Name, &e.Salary, &e.Age)
+		if err != nil {
+			log.Println(err)
+		}
+		employees = append(employees, e)
+	}
+
+	return employees
 }
