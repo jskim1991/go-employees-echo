@@ -1,9 +1,13 @@
 package repository
 
 import (
+	"database/sql/driver"
+	"employees-echo/models"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"regexp"
 	"testing"
+	"time"
 )
 
 func TestRepository(t *testing.T) {
@@ -33,4 +37,39 @@ func TestRepository(t *testing.T) {
 		assert.Equal(t, "100", queryResult[0].Salary)
 		assert.Equal(t, 30, queryResult[0].Age)
 	})
+
+	t.Run("RegisterEmployee inserts a new employee and returns id", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Close()
+
+		employeeToInsert := models.Employee{
+			Name:   "Jay",
+			Salary: "100",
+			Age:    30,
+		}
+
+		mock.ExpectQuery(regexp.QuoteMeta(`insert into employee (name, salary, age, created_at, updated_at) values ($1, $2, $3, $4, $5) returning id`)).
+			WithArgs(employeeToInsert.Name, employeeToInsert.Salary, employeeToInsert.Age, AnyTime{}, AnyTime{}).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+		repository := DefaultRepository{
+			DB: db,
+		}
+		newId := repository.InsertEmployee(employeeToInsert)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf(err.Error())
+		}
+		assert.Equal(t, 1, newId)
+	})
+}
+
+type AnyTime struct{}
+
+func (a AnyTime) Match(v driver.Value) bool {
+	_, ok := v.(time.Time)
+	return ok
 }

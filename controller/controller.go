@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"employees-echo/models"
 	"employees-echo/repository"
 	"github.com/labstack/echo/v4"
+	"log"
 	"net/http"
+	"strconv"
 )
 
 type Controller struct {
@@ -15,8 +18,24 @@ func (m *Controller) NewHandler(r repository.Repository) {
 }
 
 func (m *Controller) GetAllEmployees(c echo.Context) error {
-
 	result := m.Repository.FindAll()
-
 	return c.JSON(http.StatusOK, result)
+}
+
+func (m *Controller) RegisterEmployee(c echo.Context) error {
+	e := &models.NewEmployeeRequest{}
+
+	err := c.Bind(e)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	newEmployee := models.Employee{
+		Name:   e.Name,
+		Salary: e.Salary,
+		Age:    e.Age,
+	}
+
+	id := m.Repository.InsertEmployee(newEmployee)
+	return c.String(http.StatusCreated, strconv.Itoa(id))
 }

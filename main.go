@@ -4,6 +4,7 @@ import (
 	"employees-echo/controller"
 	"employees-echo/repository"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -18,8 +19,10 @@ func main() {
 	}
 
 	e := echo.New()
+	e.Use(middleware.Logger())
 
 	e.GET("/employees", handler.GetAllEmployees)
+	e.POST("/employee", handler.RegisterEmployee)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
