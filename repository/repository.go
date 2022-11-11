@@ -19,8 +19,8 @@ type DefaultRepository struct {
 	DB *sql.DB
 }
 
-func ConnectDB() *sql.DB {
-	db, err := sql.Open("pgx", "host=localhost port=5432 dbname=test user=postgres password=")
+func ConnectDB(datasource string) *sql.DB {
+	db, err := sql.Open("pgx", datasource)
 	if err != nil {
 		log.Fatalln(err)
 	}

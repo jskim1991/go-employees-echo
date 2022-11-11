@@ -32,7 +32,6 @@ func TestIntegration(t *testing.T) {
 
 		e := echo.New()
 		e.Use(middleware.Logger())
-
 		e.GET("/employees", handler.GetAllEmployees)
 		e.POST("/employee", handler.RegisterEmployee)
 

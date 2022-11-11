@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	db := repository.ConnectDB()
+	datasource := "host=localhost port=5432 dbname=test user=postgres password="
+	db := repository.ConnectDB(datasource)
 	defer db.Close()
 
 	defaultRepository := repository.DefaultRepository{
