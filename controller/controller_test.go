@@ -54,7 +54,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("RegisterEmployee returns status created", func(t *testing.T) {
 		e := echo.New()
-		employee := models.NewEmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		employee := models.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -69,7 +69,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("RegistrationEmployee returns id of the registered employee", func(t *testing.T) {
 		e := echo.New()
-		employee := models.NewEmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		employee := models.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -86,7 +86,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("RegisterEmployee invokes Repository::InsertEmployee() with given employee", func(t *testing.T) {
 		e := echo.New()
-		employee := models.NewEmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		employee := models.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -101,5 +101,48 @@ func TestHandlers(t *testing.T) {
 		assert.Equal(t, employee.Name, spyStubRepository.InsertEmployee_argument.Name)
 		assert.Equal(t, employee.Salary, spyStubRepository.InsertEmployee_argument.Salary)
 		assert.Equal(t, employee.Age, spyStubRepository.InsertEmployee_argument.Age)
+	})
+
+	t.Run("UpdateEmployee invokes Repository::Update() with given id and employee info", func(t *testing.T) {
+		e := echo.New()
+		employee := models.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
+		postJson, _ := json.Marshal(employee)
+		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
+		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		response := httptest.NewRecorder()
+		c := e.NewContext(request, response)
+		c.SetPath("/:id")
+		c.SetParamNames("id")
+		c.SetParamValues("1")
+
+		spyStubRepository := &testdoubles.SpyStubRepository{}
+		controller := Controller{Repository: spyStubRepository}
+		controller.UpdateEmployee(c)
+
+		assert.Equal(t, 1, spyStubRepository.Update_invocation)
+		assert.Equal(t, 1, spyStubRepository.Update_argument_id)
+		assert.Equal(t, "Sam", spyStubRepository.Update_argument_employee.Name)
+		assert.Equal(t, "1", spyStubRepository.Update_argument_employee.Salary)
+		assert.Equal(t, 40, spyStubRepository.Update_argument_employee.Age)
+	})
+
+	t.Run("UpdateEmployee returns status ok with no content", func(t *testing.T) {
+		e := echo.New()
+		employee := models.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
+		postJson, _ := json.Marshal(employee)
+		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
+		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		response := httptest.NewRecorder()
+		c := e.NewContext(request, response)
+		c.SetPath("/:id")
+		c.SetParamNames("id")
+		c.SetParamValues("1")
+
+		spyStubRepository := &testdoubles.SpyStubRepository{}
+		controller := Controller{Repository: spyStubRepository}
+		controller.UpdateEmployee(c)
+
+		assert.Equal(t, http.StatusOK, response.Code)
+		assert.Equal(t, 0, response.Body.Len())
 	})
 }

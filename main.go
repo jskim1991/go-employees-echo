@@ -24,6 +24,7 @@ func main() {
 
 	e.GET("/employees", handler.GetAllEmployees)
 	e.POST("/employee", handler.RegisterEmployee)
+	e.PUT("/employee/:id", handler.UpdateEmployee)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

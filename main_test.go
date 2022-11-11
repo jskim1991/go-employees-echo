@@ -20,7 +20,7 @@ import (
 
 func TestIntegration(t *testing.T) {
 	t.Run("Register an employee and return all", func(t *testing.T) {
-		db := connectInMemoryDB()
+		db := connectInMemoryDB(t.Name())
 		defer db.Close()
 
 		defaultRepository := repository.DefaultRepository{
@@ -35,12 +35,12 @@ func TestIntegration(t *testing.T) {
 		e.GET("/employees", handler.GetAllEmployees)
 		e.POST("/employee", handler.RegisterEmployee)
 
-		postJson, _ := json.Marshal(models.NewEmployeeRequest{
+		postJson, _ := json.Marshal(models.EmployeeRequest{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
 		})
-		request := httptest.NewRequest(http.MethodGet, "/employees", bytes.NewReader(postJson))
+		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
 
 		response := httptest.NewRecorder()
@@ -62,16 +62,83 @@ func TestIntegration(t *testing.T) {
 		}
 
 		var returnedEmployees []models.Employee
-		json.Unmarshal([]byte(response.Body.String()), &returnedEmployees)
+		json.Unmarshal(response.Body.Bytes(), &returnedEmployees)
 		assert.Equal(t, 1, len(returnedEmployees))
+		assert.Equal(t, 1, returnedEmployees[0].Id)
 		assert.Equal(t, "Jay", returnedEmployees[0].Name)
 		assert.Equal(t, "100", returnedEmployees[0].Salary)
 		assert.Equal(t, 30, returnedEmployees[0].Age)
 	})
+
+	t.Run("Insert then update and return all", func(t *testing.T) {
+		db := connectInMemoryDB(t.Name())
+		defer db.Close()
+
+		defaultRepository := repository.DefaultRepository{
+			DB: db,
+		}
+		handler := controller.Controller{
+			Repository: &defaultRepository,
+		}
+
+		e := echo.New()
+		e.Use(middleware.Logger())
+		e.GET("/employees", handler.GetAllEmployees)
+		e.POST("/employee", handler.RegisterEmployee)
+
+		postJson, _ := json.Marshal(models.EmployeeRequest{
+			Name:   "Jay",
+			Salary: "100",
+			Age:    30,
+		})
+		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
+		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		response := httptest.NewRecorder()
+		c := e.NewContext(request, response)
+
+		handler.RegisterEmployee(c)
+
+		newId := response.Body.String()
+
+		putJson, _ := json.Marshal(models.EmployeeRequest{
+			Name:   "Jay Kim",
+			Salary: "1000",
+			Age:    31,
+		})
+		request = httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(putJson))
+		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		response = httptest.NewRecorder()
+		c = e.NewContext(request, response)
+		c.SetPath(":id")
+		c.SetParamNames("id")
+		c.SetParamValues(newId)
+
+		err := handler.UpdateEmployee(c)
+		if err != nil {
+			t.Error(err)
+		}
+
+		request = httptest.NewRequest(http.MethodGet, "/employees", nil)
+		response = httptest.NewRecorder()
+		c = e.NewContext(request, response)
+
+		err = handler.GetAllEmployees(c)
+		if err != nil {
+			t.Error(err)
+		}
+
+		var returnedEmployees []models.Employee
+		json.Unmarshal(response.Body.Bytes(), &returnedEmployees)
+		assert.Equal(t, 1, len(returnedEmployees))
+		assert.Equal(t, 1, returnedEmployees[0].Id)
+		assert.Equal(t, "Jay Kim", returnedEmployees[0].Name)
+		assert.Equal(t, "1000", returnedEmployees[0].Salary)
+		assert.Equal(t, 31, returnedEmployees[0].Age)
+	})
 }
 
-func connectInMemoryDB() *sql.DB {
-	db, err := sql.Open("ramsql", "TestIntegration")
+func connectInMemoryDB(datasource string) *sql.DB {
+	db, err := sql.Open("ramsql", datasource)
 	if err != nil {
 		log.Fatalln(err)
 	}

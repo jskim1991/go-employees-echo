@@ -23,8 +23,7 @@ func (m *Controller) GetAllEmployees(c echo.Context) error {
 }
 
 func (m *Controller) RegisterEmployee(c echo.Context) error {
-	e := &models.NewEmployeeRequest{}
-
+	e := &models.EmployeeRequest{}
 	err := c.Bind(e)
 	if err != nil {
 		log.Fatalln(err)
@@ -38,4 +37,27 @@ func (m *Controller) RegisterEmployee(c echo.Context) error {
 
 	id := m.Repository.InsertEmployee(newEmployee)
 	return c.String(http.StatusCreated, strconv.Itoa(id))
+}
+
+func (m *Controller) UpdateEmployee(c echo.Context) error {
+	e := &models.EmployeeRequest{}
+	err := c.Bind(e)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	path := c.Param("id")
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	updateEmployee := models.Employee{
+		Name:   e.Name,
+		Salary: e.Salary,
+		Age:    e.Age,
+	}
+
+	m.Repository.Update(id, updateEmployee)
+	return c.NoContent(http.StatusOK)
 }

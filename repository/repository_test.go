@@ -65,6 +65,33 @@ func TestRepository(t *testing.T) {
 		}
 		assert.Equal(t, 1, newId)
 	})
+
+	t.Run("Update updates employee information", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer db.Close()
+
+		updateEmployee := models.Employee{
+			Name:   "Jay",
+			Salary: "100",
+			Age:    30,
+		}
+
+		mock.ExpectExec(regexp.QuoteMeta(`update employee set name=$1, salary=$2, age=$3, updated_at=$4 where id = $5`)).
+			WithArgs(updateEmployee.Name, updateEmployee.Salary, updateEmployee.Age, AnyTime{}, 1).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		repository := DefaultRepository{
+			DB: db,
+		}
+		repository.Update(1, updateEmployee)
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf(err.Error())
+		}
+	})
 }
 
 type AnyTime struct{}
