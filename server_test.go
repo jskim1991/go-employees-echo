@@ -8,8 +8,6 @@ import (
 	"employees-echo/model"
 	"employees-echo/repository"
 	"encoding/json"
-	"fmt"
-	"github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/stretchr/testify/assert"
@@ -26,14 +24,7 @@ func TestMain(m *testing.M) {
 
 func run(t *testing.T) (e *echo.Echo, handler controller.Controller) {
 	t.Helper()
-	cfg := mysql.NewConfig()
-	cfg.Net = "tcp"
-	cfg.ParseTime = true
-	cfg.User = "root"
-	cfg.Addr = fmt.Sprintf("%s:%s", "127.0.0.1", "3307")
-	cfg.DBName = DatabaseName
-	datasource := cfg.FormatDSN()
-	sqlDB, err := sql.Open("mysql", datasource)
+	sqlDB, err := sql.Open("mysql", generateDatasource())
 	if err != nil {
 		panic(err)
 	}

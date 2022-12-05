@@ -6,7 +6,6 @@ import (
 	"employees-echo/model"
 	"employees-echo/repository"
 	"fmt"
-	"github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -15,14 +14,7 @@ var DatabaseName string
 
 func main() {
 	DatabaseName = "employees-echo"
-	cfg := mysql.NewConfig()
-	cfg.Net = "tcp"
-	cfg.ParseTime = true
-	cfg.User = "root"
-	cfg.Addr = fmt.Sprintf("%s:%s", "127.0.0.1", "3307")
-	cfg.DBName = DatabaseName
-	datasource := cfg.FormatDSN()
-	sqlDB, err := sql.Open("mysql", datasource)
+	sqlDB, err := sql.Open("mysql", generateDatasource())
 	if err != nil {
 		panic(err)
 	}
@@ -45,4 +37,9 @@ func main() {
 	e.PUT("/employee/:id", handler.UpdateEmployee)
 
 	e.Logger.Fatal(e.Start(":8080"))
+}
+
+func generateDatasource() string {
+	options := "charset=utf8&parseTime=True"
+	return fmt.Sprintf("root:@tcp(127.0.0.1:3307)/%s?%s", DatabaseName, options)
 }
