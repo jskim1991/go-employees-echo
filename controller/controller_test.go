@@ -2,7 +2,7 @@ package controller
 
 import (
 	"bytes"
-	"employees-echo/models"
+	"employees-echo/dto"
 	"employees-echo/testdoubles"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
@@ -19,7 +19,7 @@ func TestHandlers(t *testing.T) {
 		response := httptest.NewRecorder()
 		c := e.NewContext(request, response)
 		spyStubRepository := testdoubles.SpyStubRepository{
-			FindAll_returnValue: []models.Employee{},
+			FindAll_returnValue: []dto.EmployeeResponse{},
 		}
 		controller := Controller{Repository: &spyStubRepository}
 
@@ -34,8 +34,8 @@ func TestHandlers(t *testing.T) {
 		response := httptest.NewRecorder()
 		c := e.NewContext(request, response)
 
-		employee := models.Employee{Id: 199, Name: "Jay", Salary: "100", Age: 30}
-		stubEmployees := []models.Employee{employee}
+		employee := dto.EmployeeResponse{Id: 199, Name: "Jay", Salary: "100", Age: 30}
+		stubEmployees := []dto.EmployeeResponse{employee}
 		controller := Controller{Repository: &testdoubles.SpyStubRepository{
 			FindAll_returnValue: stubEmployees,
 		}}
@@ -43,7 +43,7 @@ func TestHandlers(t *testing.T) {
 		controller.GetAllEmployees(c)
 
 		assert.Equal(t, http.StatusOK, response.Code)
-		var returnedEmployees []models.Employee
+		var returnedEmployees []dto.EmployeeResponse
 		json.Unmarshal([]byte(response.Body.String()), &returnedEmployees)
 		returnedEmployee := returnedEmployees[0]
 		assert.Equal(t, 199, returnedEmployee.Id)
@@ -54,7 +54,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("RegisterEmployee returns status created", func(t *testing.T) {
 		e := echo.New()
-		employee := models.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		employee := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -69,7 +69,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("RegistrationEmployee returns id of the registered employee", func(t *testing.T) {
 		e := echo.New()
-		employee := models.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		employee := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -86,7 +86,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("RegisterEmployee invokes Repository::InsertEmployee() with given employee", func(t *testing.T) {
 		e := echo.New()
-		employee := models.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		employee := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -105,7 +105,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("UpdateEmployee invokes Repository::Update() with given id and employee info", func(t *testing.T) {
 		e := echo.New()
-		employee := models.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
+		employee := dto.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
@@ -128,7 +128,7 @@ func TestHandlers(t *testing.T) {
 
 	t.Run("UpdateEmployee returns status ok with no content", func(t *testing.T) {
 		e := echo.New()
-		employee := models.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
+		employee := dto.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
 		postJson, _ := json.Marshal(employee)
 		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
 		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)

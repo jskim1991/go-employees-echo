@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"employees-echo/controller"
-	"employees-echo/models"
+	"employees-echo/dto"
 	"employees-echo/repository"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
@@ -35,7 +35,7 @@ func TestIntegration(t *testing.T) {
 		e.GET("/employees", handler.GetAllEmployees)
 		e.POST("/employee", handler.RegisterEmployee)
 
-		postJson, _ := json.Marshal(models.EmployeeRequest{
+		postJson, _ := json.Marshal(dto.EmployeeRequest{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
@@ -61,7 +61,7 @@ func TestIntegration(t *testing.T) {
 			t.Error(err)
 		}
 
-		var returnedEmployees []models.Employee
+		var returnedEmployees []dto.EmployeeResponse
 		json.Unmarshal(response.Body.Bytes(), &returnedEmployees)
 		assert.Equal(t, 1, len(returnedEmployees))
 		assert.Equal(t, 1, returnedEmployees[0].Id)
@@ -86,7 +86,7 @@ func TestIntegration(t *testing.T) {
 		e.GET("/employees", handler.GetAllEmployees)
 		e.POST("/employee", handler.RegisterEmployee)
 
-		postJson, _ := json.Marshal(models.EmployeeRequest{
+		postJson, _ := json.Marshal(dto.EmployeeRequest{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
@@ -100,7 +100,7 @@ func TestIntegration(t *testing.T) {
 
 		newId := response.Body.String()
 
-		putJson, _ := json.Marshal(models.EmployeeRequest{
+		putJson, _ := json.Marshal(dto.EmployeeRequest{
 			Name:   "Jay Kim",
 			Salary: "1000",
 			Age:    31,
@@ -127,7 +127,7 @@ func TestIntegration(t *testing.T) {
 			t.Error(err)
 		}
 
-		var returnedEmployees []models.Employee
+		var returnedEmployees []dto.EmployeeResponse
 		json.Unmarshal(response.Body.Bytes(), &returnedEmployees)
 		assert.Equal(t, 1, len(returnedEmployees))
 		assert.Equal(t, 1, returnedEmployees[0].Id)

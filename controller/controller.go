@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"employees-echo/models"
+	"employees-echo/dto"
 	"employees-echo/repository"
 	"github.com/labstack/echo/v4"
 	"log"
@@ -23,13 +23,13 @@ func (m *Controller) GetAllEmployees(c echo.Context) error {
 }
 
 func (m *Controller) RegisterEmployee(c echo.Context) error {
-	e := &models.EmployeeRequest{}
+	e := &dto.EmployeeRequest{}
 	err := c.Bind(e)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	newEmployee := models.Employee{
+	newEmployee := dto.EmployeeResponse{
 		Name:   e.Name,
 		Salary: e.Salary,
 		Age:    e.Age,
@@ -40,7 +40,7 @@ func (m *Controller) RegisterEmployee(c echo.Context) error {
 }
 
 func (m *Controller) UpdateEmployee(c echo.Context) error {
-	e := &models.EmployeeRequest{}
+	e := &dto.EmployeeRequest{}
 	err := c.Bind(e)
 	if err != nil {
 		log.Fatalln(err)
@@ -52,7 +52,7 @@ func (m *Controller) UpdateEmployee(c echo.Context) error {
 		log.Fatalln(err)
 	}
 
-	updateEmployee := models.Employee{
+	updateEmployee := dto.EmployeeResponse{
 		Name:   e.Name,
 		Salary: e.Salary,
 		Age:    e.Age,

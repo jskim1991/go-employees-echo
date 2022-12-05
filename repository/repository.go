@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"employees-echo/models"
+	"employees-echo/dto"
 	_ "github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -12,9 +12,9 @@ import (
 )
 
 type Repository interface {
-	FindAll() []models.Employee
-	InsertEmployee(e models.Employee) int
-	Update(id int, e models.Employee)
+	FindAll() []dto.EmployeeResponse
+	InsertEmployee(e dto.EmployeeResponse) int
+	Update(id int, e dto.EmployeeResponse)
 }
 
 type DefaultRepository struct {
@@ -33,10 +33,10 @@ func ConnectDB(datasource string) *sql.DB {
 	return db
 }
 
-func (m *DefaultRepository) FindAll() []models.Employee {
+func (m *DefaultRepository) FindAll() []dto.EmployeeResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	var employees []models.Employee
+	var employees []dto.EmployeeResponse
 
 	query := `select id, name, salary, age from employee`
 	rows, err := m.DB.QueryContext(ctx, query)
@@ -45,7 +45,7 @@ func (m *DefaultRepository) FindAll() []models.Employee {
 	}
 
 	for rows.Next() {
-		var e models.Employee
+		var e dto.EmployeeResponse
 		err := rows.Scan(&e.Id, &e.Name, &e.Salary, &e.Age)
 		if err != nil {
 			log.Println(err)
@@ -56,7 +56,7 @@ func (m *DefaultRepository) FindAll() []models.Employee {
 	return employees
 }
 
-func (m *DefaultRepository) InsertEmployee(e models.Employee) int {
+func (m *DefaultRepository) InsertEmployee(e dto.EmployeeResponse) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	var newId int
@@ -69,7 +69,7 @@ func (m *DefaultRepository) InsertEmployee(e models.Employee) int {
 	return newId
 }
 
-func (m *DefaultRepository) Update(id int, e models.Employee) {
+func (m *DefaultRepository) Update(id int, e dto.EmployeeResponse) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	query := `update employee set name=$1, salary=$2, age=$3, updated_at=$4 where id = $5`

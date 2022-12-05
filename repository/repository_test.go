@@ -2,7 +2,7 @@ package repository
 
 import (
 	"database/sql/driver"
-	"employees-echo/models"
+	"employees-echo/dto"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"regexp"
@@ -45,7 +45,7 @@ func TestRepository(t *testing.T) {
 		}
 		defer db.Close()
 
-		employeeToInsert := models.Employee{
+		employeeToInsert := dto.EmployeeResponse{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
@@ -73,7 +73,7 @@ func TestRepository(t *testing.T) {
 		}
 		defer db.Close()
 
-		updateEmployee := models.Employee{
+		updateEmployee := dto.EmployeeResponse{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
