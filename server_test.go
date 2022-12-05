@@ -5,35 +5,90 @@ import (
 	"database/sql"
 	"employees-echo/controller"
 	"employees-echo/dto"
+	"employees-echo/model"
 	"employees-echo/repository"
 	"encoding/json"
+	"fmt"
+	"github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/stretchr/testify/assert"
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
-
-	_ "github.com/proullon/ramsql/driver"
 )
 
-func TestIntegration(t *testing.T) {
-	t.Run("Register an employee and return all", func(t *testing.T) {
-		db := connectInMemoryDB(t.Name())
-		defer db.Close()
+func TestMain(m *testing.M) {
+	DatabaseName = "journey"
+	os.Exit(m.Run())
+}
 
-		defaultRepository := repository.DefaultRepository{
-			DB: db,
-		}
-		handler := controller.Controller{
-			Repository: &defaultRepository,
-		}
+func run(t *testing.T) (e *echo.Echo, handler controller.Controller) {
+	t.Helper()
+	cfg := mysql.NewConfig()
+	cfg.Net = "tcp"
+	cfg.ParseTime = true
+	cfg.User = "root"
+	cfg.Addr = fmt.Sprintf("%s:%s", "127.0.0.1", "3307")
+	cfg.DBName = DatabaseName
+	datasource := cfg.FormatDSN()
+	sqlDB, err := sql.Open("mysql", datasource)
+	if err != nil {
+		panic(err)
+	}
 
-		e := echo.New()
-		e.Use(middleware.Logger())
-		e.GET("/employees", handler.GetAllEmployees)
-		e.POST("/employee", handler.RegisterEmployee)
+	db := repository.ConnectDB(sqlDB)
+
+	db.AutoMigrate(&model.Employee{})
+
+	defaultRepository := repository.DefaultRepository{
+		DB: db,
+	}
+	handler = controller.Controller{
+		Repository: &defaultRepository,
+	}
+
+	echo := echo.New()
+	echo.Use(middleware.Logger())
+
+	echo.GET("/employees", handler.GetAllEmployees)
+	echo.POST("/employee", handler.RegisterEmployee)
+	echo.PUT("/employee/:id", handler.UpdateEmployee)
+
+	return echo, handler
+}
+
+func beforeEach(t *testing.T) {
+	t.Helper()
+	sqlDB, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3307)/")
+	_, err = sqlDB.Exec("CREATE DATABASE " + DatabaseName)
+	if err != nil {
+		panic(err)
+	}
+	_, err = sqlDB.Exec("USE " + DatabaseName)
+	if err != nil {
+		panic(err)
+	}
+	if err != nil {
+		panic(err)
+	}
+	defer sqlDB.Close()
+}
+
+func afterEach(t *testing.T) {
+	t.Helper()
+	sqlDB, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3307)/")
+	_, err = sqlDB.Exec("DROP SCHEMA " + DatabaseName)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestServer(t *testing.T) {
+	t.Run("Persona can register a new employee and can see a list of employees", func(t *testing.T) {
+		beforeEach(t)
+		e, handler := run(t)
 
 		postJson, _ := json.Marshal(dto.EmployeeRequest{
 			Name:   "Jay",
@@ -64,27 +119,17 @@ func TestIntegration(t *testing.T) {
 		var returnedEmployees []dto.EmployeeResponse
 		json.Unmarshal(response.Body.Bytes(), &returnedEmployees)
 		assert.Equal(t, 1, len(returnedEmployees))
-		assert.Equal(t, 1, returnedEmployees[0].Id)
+		assert.Equal(t, uint(1), returnedEmployees[0].Id)
 		assert.Equal(t, "Jay", returnedEmployees[0].Name)
 		assert.Equal(t, "100", returnedEmployees[0].Salary)
 		assert.Equal(t, 30, returnedEmployees[0].Age)
+
+		afterEach(t)
 	})
 
-	t.Run("Insert then update and return all", func(t *testing.T) {
-		db := connectInMemoryDB(t.Name())
-		defer db.Close()
-
-		defaultRepository := repository.DefaultRepository{
-			DB: db,
-		}
-		handler := controller.Controller{
-			Repository: &defaultRepository,
-		}
-
-		e := echo.New()
-		e.Use(middleware.Logger())
-		e.GET("/employees", handler.GetAllEmployees)
-		e.POST("/employee", handler.RegisterEmployee)
+	t.Run("Persona can update existing employee", func(t *testing.T) {
+		beforeEach(t)
+		e, handler := run(t)
 
 		postJson, _ := json.Marshal(dto.EmployeeRequest{
 			Name:   "Jay",
@@ -130,39 +175,11 @@ func TestIntegration(t *testing.T) {
 		var returnedEmployees []dto.EmployeeResponse
 		json.Unmarshal(response.Body.Bytes(), &returnedEmployees)
 		assert.Equal(t, 1, len(returnedEmployees))
-		assert.Equal(t, 1, returnedEmployees[0].Id)
+		assert.Equal(t, uint(1), returnedEmployees[0].Id)
 		assert.Equal(t, "Jay Kim", returnedEmployees[0].Name)
 		assert.Equal(t, "1000", returnedEmployees[0].Salary)
 		assert.Equal(t, 31, returnedEmployees[0].Age)
+
+		afterEach(t)
 	})
-}
-
-func connectInMemoryDB(datasource string) *sql.DB {
-	db, err := sql.Open("ramsql", datasource)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	setupInitialData(db)
-
-	return db
-}
-
-func setupInitialData(db *sql.DB) {
-	batch := []string{
-		`CREATE TABLE employee (
-			id BIGSERIAL PRIMARY KEY,
-			"name" TEXT,
-			salary TEXT,
-			age INT,
-			created_at timestamp NOT NULL,
-			updated_at timestamp NOT NULL);`,
-	}
-
-	for _, query := range batch {
-		_, err := db.Exec(query)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}
 }

@@ -1,25 +1,38 @@
 package repository
 
 import (
-	"database/sql/driver"
 	"employees-echo/dto"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"regexp"
 	"testing"
-	"time"
 )
+
+func initializeGormForTest(t *testing.T) (db *gorm.DB, mock sqlmock.Sqlmock) {
+	t.Helper()
+	sqlDB, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gormDB, err := gorm.Open(mysql.New(mysql.Config{Conn: sqlDB, SkipInitializeWithVersion: true}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return gormDB, mock
+}
 
 func TestRepository(t *testing.T) {
 	t.Run("FindAll returns employee slice", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
+		db, mock := initializeGormForTest(t)
 
-		mock.ExpectQuery("select id, name, salary, age from employee").
-			WithArgs().
+		statement := "SELECT * FROM `employees` WHERE `employees`.`deleted_at` IS NULL"
+		mock.ExpectQuery(regexp.QuoteMeta(statement)).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "name", "salary", "age"}).
 				AddRow(1, "Jay", "100", 30))
 
@@ -28,75 +41,63 @@ func TestRepository(t *testing.T) {
 		}
 		queryResult := repository.FindAll()
 
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf("error")
-		}
-
-		assert.Equal(t, 1, queryResult[0].Id)
+		assert.Nil(t, mock.ExpectationsWereMet())
+		assert.Equal(t, uint(1), queryResult[0].Model.ID)
 		assert.Equal(t, "Jay", queryResult[0].Name)
 		assert.Equal(t, "100", queryResult[0].Salary)
 		assert.Equal(t, 30, queryResult[0].Age)
 	})
 
 	t.Run("RegisterEmployee inserts a new employee and returns id", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
+		db, mock := initializeGormForTest(t)
 
-		employeeToInsert := dto.EmployeeResponse{
+		e := dto.EmployeeResponse{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
 		}
 
-		mock.ExpectQuery(regexp.QuoteMeta(`insert into employee (name, salary, age, created_at, updated_at) values ($1, $2, $3, $4, $5) returning id`)).
-			WithArgs(employeeToInsert.Name, employeeToInsert.Salary, employeeToInsert.Age, AnyTime{}, AnyTime{}).
-			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+		statement := "INSERT INTO `employees` (`created_at`,`updated_at`,`deleted_at`,`name`,`salary`,`age`) VALUES (?,?,?,?,?,?)"
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(statement)).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), nil, e.Name, e.Salary, e.Age).
+			WillReturnResult(sqlmock.NewResult(19, 1))
+		mock.ExpectCommit()
 
 		repository := DefaultRepository{
 			DB: db,
 		}
-		newId := repository.InsertEmployee(employeeToInsert)
+		newId := repository.InsertEmployee(e)
 
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf(err.Error())
-		}
-		assert.Equal(t, 1, newId)
+		assert.Equal(t, nil, mock.ExpectationsWereMet())
+		assert.Equal(t, uint(19), newId)
 	})
 
 	t.Run("Update updates employee information", func(t *testing.T) {
-		db, mock, err := sqlmock.New()
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer db.Close()
+		db, mock := initializeGormForTest(t)
 
-		updateEmployee := dto.EmployeeResponse{
+		e := dto.EmployeeResponse{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
 		}
 
-		mock.ExpectExec(regexp.QuoteMeta(`update employee set name=$1, salary=$2, age=$3, updated_at=$4 where id = $5`)).
-			WithArgs(updateEmployee.Name, updateEmployee.Salary, updateEmployee.Age, AnyTime{}, 1).
-			WillReturnResult(sqlmock.NewResult(1, 1))
+		statement := "INSERT INTO `employees` (`created_at`,`updated_at`,`deleted_at`,`name`,`salary`,`age`,`id`) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE `name`=VALUES(`name`),`salary`=VALUES(`salary`),`age`=VALUES(`age`)"
+		mock.ExpectBegin()
+		mock.ExpectExec(regexp.QuoteMeta(statement)).
+			WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), nil, e.Name, e.Salary, e.Age, 199).
+			WillReturnResult(sqlmock.NewResult(199, 1))
+		mock.ExpectCommit()
 
 		repository := DefaultRepository{
 			DB: db,
 		}
-		repository.Update(1, updateEmployee)
+		updatedResult := repository.Update(199, e)
 
-		if err := mock.ExpectationsWereMet(); err != nil {
-			t.Errorf(err.Error())
-		}
+		assert.Equal(t, nil, mock.ExpectationsWereMet())
+		assert.Equal(t, uint(199), updatedResult.ID)
+		assert.Equal(t, "Jay", updatedResult.Name)
+		assert.Equal(t, "100", updatedResult.Salary)
+		assert.Equal(t, 30, updatedResult.Age)
 	})
-}
-
-type AnyTime struct{}
-
-func (a AnyTime) Match(v driver.Value) bool {
-	_, ok := v.(time.Time)
-	return ok
 }

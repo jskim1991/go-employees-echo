@@ -2,34 +2,37 @@ package testdoubles
 
 import (
 	"employees-echo/dto"
+	"employees-echo/model"
 )
 
 type SpyStubRepository struct {
-	FindAll_returnValue []dto.EmployeeResponse
-	FindAll_invocation  int
+	FindAllReturnValue []model.Employee
+	FindAllInvocation  int
 
-	InsertEmployee_invocation  int
-	InsertEmployee_argument    dto.EmployeeResponse
-	InsertEmployee_returnValue int
+	InsertEmployeeInvocation  int
+	InsertEmployeeArgument    dto.EmployeeResponse
+	InsertEmployeeReturnValue uint
 
-	Update_invocation        int
-	Update_argument_id       int
-	Update_argument_employee dto.EmployeeResponse
+	UpdateInvocation       int
+	UpdateArgumentId       uint
+	UpdateArgumentEmployee dto.EmployeeResponse
+	UpdateReturnValue      model.Employee
 }
 
-func (m *SpyStubRepository) FindAll() []dto.EmployeeResponse {
-	m.FindAll_invocation++
-	return m.FindAll_returnValue
+func (m *SpyStubRepository) FindAll() []model.Employee {
+	m.FindAllInvocation++
+	return m.FindAllReturnValue
 }
 
-func (m *SpyStubRepository) InsertEmployee(e dto.EmployeeResponse) int {
-	m.InsertEmployee_argument = e
-	m.InsertEmployee_invocation++
-	return m.InsertEmployee_returnValue
+func (m *SpyStubRepository) InsertEmployee(e dto.EmployeeResponse) uint {
+	m.InsertEmployeeArgument = e
+	m.InsertEmployeeInvocation++
+	return m.InsertEmployeeReturnValue
 }
 
-func (m *SpyStubRepository) Update(id int, e dto.EmployeeResponse) {
-	m.Update_invocation++
-	m.Update_argument_id = id
-	m.Update_argument_employee = e
+func (m *SpyStubRepository) Update(id uint, e dto.EmployeeResponse) model.Employee {
+	m.UpdateInvocation++
+	m.UpdateArgumentId = id
+	m.UpdateArgumentEmployee = e
+	return m.UpdateReturnValue
 }
