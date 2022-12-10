@@ -51,7 +51,7 @@ func TestRepository(t *testing.T) {
 	t.Run("RegisterEmployee inserts a new employee and returns id", func(t *testing.T) {
 		db, mock := initializeGormForTest(t)
 
-		e := dto.EmployeeResponse{
+		e := dto.EmployeeRequest{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,
@@ -76,7 +76,7 @@ func TestRepository(t *testing.T) {
 	t.Run("Update updates employee information", func(t *testing.T) {
 		db, mock := initializeGormForTest(t)
 
-		e := dto.EmployeeResponse{
+		e := dto.EmployeeRequest{
 			Name:   "Jay",
 			Salary: "100",
 			Age:    30,

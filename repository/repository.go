@@ -13,8 +13,8 @@ import (
 
 type Repository interface {
 	FindAll() []model.Employee
-	InsertEmployee(e dto.EmployeeResponse) uint
-	Update(id uint, e dto.EmployeeResponse) model.Employee
+	InsertEmployee(e dto.EmployeeRequest) uint
+	Update(id uint, e dto.EmployeeRequest) model.Employee
 }
 
 type DefaultRepository struct {
@@ -35,7 +35,7 @@ func (m *DefaultRepository) FindAll() []model.Employee {
 	return employees
 }
 
-func (m *DefaultRepository) InsertEmployee(e dto.EmployeeResponse) uint {
+func (m *DefaultRepository) InsertEmployee(e dto.EmployeeRequest) uint {
 	newEmployee := model.Employee{
 		Name:   e.Name,
 		Salary: e.Salary,
@@ -45,7 +45,7 @@ func (m *DefaultRepository) InsertEmployee(e dto.EmployeeResponse) uint {
 	return newEmployee.ID
 }
 
-func (m *DefaultRepository) Update(employeeId uint, e dto.EmployeeResponse) model.Employee {
+func (m *DefaultRepository) Update(employeeId uint, e dto.EmployeeRequest) model.Employee {
 	employee := model.Employee{
 		Model:  gorm.Model{ID: employeeId},
 		Name:   e.Name,

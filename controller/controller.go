@@ -32,13 +32,7 @@ func (m *Controller) RegisterEmployee(c echo.Context) error {
 		log.Fatalln(err)
 	}
 
-	newEmployee := dto.EmployeeResponse{
-		Name:   e.Name,
-		Salary: e.Salary,
-		Age:    e.Age,
-	}
-
-	id := m.Repository.InsertEmployee(newEmployee)
+	id := m.Repository.InsertEmployee(*e)
 	return c.String(http.StatusCreated, fmt.Sprint(id))
 }
 
@@ -55,14 +49,8 @@ func (m *Controller) UpdateEmployee(c echo.Context) error {
 		log.Fatalln(err)
 	}
 
-	updateEmployee := dto.EmployeeResponse{
-		Name:   e.Name,
-		Salary: e.Salary,
-		Age:    e.Age,
-	}
-
-	m.Repository.Update(uint(employeeId), updateEmployee)
-	return c.NoContent(http.StatusOK)
+	m.Repository.Update(uint(employeeId), *e)
+	return c.NoContent(http.StatusNoContent)
 }
 
 func mapToResponse(models []model.Employee) []dto.EmployeeResponse {

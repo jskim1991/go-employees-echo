@@ -10,11 +10,9 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-var DatabaseName string
-
 func main() {
-	DatabaseName = "employees-echo"
-	sqlDB, err := sql.Open("mysql", generateDatasource())
+	databaseName := "employees-echo"
+	sqlDB, err := sql.Open("mysql", generateDatasource(databaseName))
 	if err != nil {
 		panic(err)
 	}
@@ -39,7 +37,7 @@ func main() {
 	e.Logger.Fatal(e.Start(":8080"))
 }
 
-func generateDatasource() string {
+func generateDatasource(dbName string) string {
 	options := "charset=utf8&parseTime=True"
-	return fmt.Sprintf("root:@tcp(127.0.0.1:3307)/%s?%s", DatabaseName, options)
+	return fmt.Sprintf("root:@tcp(127.0.0.1:3307)/%s?%s", dbName, options)
 }

@@ -8,34 +8,60 @@ import (
 	"encoding/json"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-func TestHandlers(t *testing.T) {
-	t.Run("GetAllEmployees invokes Repository::FindAll()", func(t *testing.T) {
-		e := echo.New()
-		request := httptest.NewRequest(http.MethodGet, "/employees", nil)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
+type ControllerTestSuite struct {
+	suite.Suite
+}
+
+func TestControllerSuite(t *testing.T) {
+	suite.Run(t, new(ControllerTestSuite))
+}
+
+func (suite *ControllerTestSuite) TestGetAllEmployees() {
+	suite.Run("returns 200 ok", func() {
+		context, rec := NewEchoContext(http.MethodGet, "/employees", nil)
+		controller := Controller{Repository: &testdoubles.SpyStubRepository{
+			FindAllReturnValue: []model.Employee{},
+		}}
+
+		controller.GetAllEmployees(context)
+
+		assert.Equal(suite.T(), http.StatusOK, rec.Code)
+	})
+
+	suite.Run("invokes Repository::FindAll() [test doubles]", func() {
+		context, _ := NewEchoContext(http.MethodGet, "/employees", nil)
 		spyStubRepository := testdoubles.SpyStubRepository{
 			FindAllReturnValue: []model.Employee{},
 		}
 		controller := Controller{Repository: &spyStubRepository}
 
-		controller.GetAllEmployees(c)
+		controller.GetAllEmployees(context)
 
-		assert.Equal(t, 1, spyStubRepository.FindAllInvocation)
+		assert.Equal(suite.T(), 1, spyStubRepository.FindAllInvocation)
 	})
 
-	t.Run("GetAllEmployees returns status ok with employee slice", func(t *testing.T) {
-		e := echo.New()
-		request := httptest.NewRequest(http.MethodGet, "/employees", nil)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
+	suite.Run("invokes Repository::FindAll() [testify]", func() {
+		context, _ := NewEchoContext(http.MethodGet, "/employees", nil)
+		mockRepository := testdoubles.MockRepository{}
+		controller := Controller{Repository: &mockRepository}
+		mockRepository.On("FindAll", mock.Anything).Return([]model.Employee{}, nil)
 
+		controller.GetAllEmployees(context)
+
+		mockRepository.AssertExpectations(suite.T())
+	})
+
+	suite.Run("returns employee slice [test doubles]", func() {
+		context, rec := NewEchoContext(http.MethodGet, "/employees", nil)
 		employee := model.Employee{
 			Model:  gorm.Model{ID: 199},
 			Name:   "Jay",
@@ -47,109 +73,177 @@ func TestHandlers(t *testing.T) {
 			FindAllReturnValue: stubEmployees,
 		}}
 
-		controller.GetAllEmployees(c)
+		controller.GetAllEmployees(context)
 
-		assert.Equal(t, http.StatusOK, response.Code)
 		var returnedEmployees []dto.EmployeeResponse
-		json.Unmarshal([]byte(response.Body.String()), &returnedEmployees)
+		responseBody, _ := io.ReadAll(rec.Body)
+		json.Unmarshal(responseBody, &returnedEmployees)
+		assert.Equal(suite.T(), 1, len(returnedEmployees))
 		returnedEmployee := returnedEmployees[0]
-		assert.Equal(t, uint(199), returnedEmployee.Id)
-		assert.Equal(t, "Jay", returnedEmployee.Name)
-		assert.Equal(t, "100", returnedEmployee.Salary)
-		assert.Equal(t, 30, returnedEmployee.Age)
+		assert.Equal(suite.T(), uint(199), returnedEmployee.Id)
+		assert.Equal(suite.T(), "Jay", returnedEmployee.Name)
+		assert.Equal(suite.T(), "100", returnedEmployee.Salary)
+		assert.Equal(suite.T(), 30, returnedEmployee.Age)
 	})
 
-	t.Run("RegisterEmployee returns status created", func(t *testing.T) {
-		e := echo.New()
-		employee := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+	suite.Run("returns employee slice [testify]", func() {
+		context, rec := NewEchoContext(http.MethodGet, "/employees", nil)
+
+		mockRepository := testdoubles.MockRepository{}
+		controller := Controller{Repository: &mockRepository}
+
+		employee := model.Employee{
+			Model:  gorm.Model{ID: 199},
+			Name:   "Jay",
+			Salary: "100",
+			Age:    30,
+		}
+		mockRepository.On("FindAll", mock.Anything).Return([]model.Employee{employee}, nil)
+		controller.GetAllEmployees(context)
+
+		var returnedEmployees []dto.EmployeeResponse
+		responseBody, _ := io.ReadAll(rec.Body)
+		json.Unmarshal(responseBody, &returnedEmployees)
+		assert.Equal(suite.T(), 1, len(returnedEmployees))
+		returnedEmployee := returnedEmployees[0]
+		assert.Equal(suite.T(), uint(199), returnedEmployee.Id)
+		assert.Equal(suite.T(), "Jay", returnedEmployee.Name)
+		assert.Equal(suite.T(), "100", returnedEmployee.Salary)
+		assert.Equal(suite.T(), 30, returnedEmployee.Age)
+	})
+}
+
+func (suite *ControllerTestSuite) TestRegisterEmployee() {
+	suite.Run("returns status created", func() {
+		context, rec := NewEchoContext(http.MethodPost, "/employee", nil)
+		controller := Controller{Repository: &testdoubles.SpyStubRepository{}}
+
+		controller.RegisterEmployee(context)
+
+		assert.Equal(suite.T(), http.StatusCreated, rec.Code)
+	})
+
+	suite.Run("invokes Repository::InsertEmployee with given request body [test doubles]", func() {
+		employeeRequest := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		postJson, _ := json.Marshal(employeeRequest)
+		context, _ := NewEchoContext(http.MethodPost, "/employee", bytes.NewReader(postJson))
+
+		spyStubRepository := testdoubles.SpyStubRepository{
+			InsertEmployeeReturnValue: uint(999),
+		}
+		controller := Controller{Repository: &spyStubRepository}
+
+		controller.RegisterEmployee(context)
+
+		assert.Equal(suite.T(), 1, spyStubRepository.InsertEmployeeInvocation)
+		assert.Equal(suite.T(), "Jay", spyStubRepository.InsertEmployeeArgument.Name)
+		assert.Equal(suite.T(), "100", spyStubRepository.InsertEmployeeArgument.Salary)
+		assert.Equal(suite.T(), 30, spyStubRepository.InsertEmployeeArgument.Age)
+	})
+
+	suite.Run("invokes Repository::InsertEmployee with given request body [testify]", func() {
+		employeeRequest := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		postJson, _ := json.Marshal(employeeRequest)
+		context, _ := NewEchoContext(http.MethodPost, "/employee", bytes.NewReader(postJson))
+
+		mockRepository := testdoubles.MockRepository{}
+		mockRepository.On("InsertEmployee", employeeRequest).Return(uint(999), nil)
+		controller := Controller{Repository: &mockRepository}
+
+		controller.RegisterEmployee(context)
+
+		mockRepository.AssertExpectations(suite.T())
+	})
+
+	suite.Run("returns id of the registered employee [test doubles]", func() {
+		employeeRequest := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		postJson, _ := json.Marshal(employeeRequest)
+		context, rec := NewEchoContext(http.MethodPost, "/employee", bytes.NewReader(postJson))
+
+		spyStubRepository := testdoubles.SpyStubRepository{
+			InsertEmployeeReturnValue: uint(999),
+		}
+		controller := Controller{Repository: &spyStubRepository}
+
+		controller.RegisterEmployee(context)
+
+		assert.Equal(suite.T(), "999", rec.Body.String())
+	})
+
+	suite.Run("returns id of the registered employee [testify]", func() {
+		employeeRequest := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
+		postJson, _ := json.Marshal(employeeRequest)
+		context, rec := NewEchoContext(http.MethodPost, "/employee", bytes.NewReader(postJson))
+
+		mockRepository := testdoubles.MockRepository{}
+		mockRepository.On("InsertEmployee", employeeRequest).Return(uint(999), nil)
+		controller := Controller{Repository: &mockRepository}
+
+		controller.RegisterEmployee(context)
+
+		assert.Equal(suite.T(), "999", rec.Body.String())
+	})
+}
+
+func (suite *ControllerTestSuite) TestUpdateEmployee() {
+	suite.Run("returns status 204 no content", func() {
+		employee := dto.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
 		postJson, _ := json.Marshal(employee)
-		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
-		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
+		context, rec := NewEchoContext(http.MethodPut, "/employee", bytes.NewReader(postJson))
+		context.SetPath("/:id")
+		context.SetParamNames("id")
+		context.SetParamValues("1")
 
 		controller := Controller{Repository: &testdoubles.SpyStubRepository{}}
-		controller.RegisterEmployee(c)
 
-		assert.Equal(t, http.StatusCreated, response.Code)
+		controller.UpdateEmployee(context)
+
+		assert.Equal(suite.T(), http.StatusNoContent, rec.Code)
 	})
 
-	t.Run("RegistrationEmployee returns id of the registered employee", func(t *testing.T) {
-		e := echo.New()
-		employee := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
-		postJson, _ := json.Marshal(employee)
-		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
-		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
-
-		controller := Controller{Repository: &testdoubles.SpyStubRepository{
-			InsertEmployeeReturnValue: 199,
-		}}
-		controller.RegisterEmployee(c)
-
-		assert.Equal(t, "199", response.Body.String())
-	})
-
-	t.Run("RegisterEmployee invokes Repository::InsertEmployee() with given employee", func(t *testing.T) {
-		e := echo.New()
-		employee := dto.EmployeeRequest{Name: "Jay", Salary: "100", Age: 30}
-		postJson, _ := json.Marshal(employee)
-		request := httptest.NewRequest(http.MethodPost, "/employee", bytes.NewReader(postJson))
-		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
-
-		spyStubRepository := &testdoubles.SpyStubRepository{}
-		controller := Controller{Repository: spyStubRepository}
-		controller.RegisterEmployee(c)
-
-		assert.Equal(t, 1, spyStubRepository.InsertEmployeeInvocation)
-		assert.Equal(t, employee.Name, spyStubRepository.InsertEmployeeArgument.Name)
-		assert.Equal(t, employee.Salary, spyStubRepository.InsertEmployeeArgument.Salary)
-		assert.Equal(t, employee.Age, spyStubRepository.InsertEmployeeArgument.Age)
-	})
-
-	t.Run("UpdateEmployee invokes Repository::Update() with given id and employee info", func(t *testing.T) {
-		e := echo.New()
+	suite.Run("invokes Repository::Update with given id and employee request body [test doubles]", func() {
 		employee := dto.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
 		postJson, _ := json.Marshal(employee)
-		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
-		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
-		c.SetPath("/:id")
-		c.SetParamNames("id")
-		c.SetParamValues("1")
+		context, _ := NewEchoContext(http.MethodPut, "/employee", bytes.NewReader(postJson))
+		context.SetPath("/:id")
+		context.SetParamNames("id")
+		context.SetParamValues("1")
 
-		spyStubRepository := &testdoubles.SpyStubRepository{}
-		controller := Controller{Repository: spyStubRepository}
-		controller.UpdateEmployee(c)
+		spyStubRepository := testdoubles.SpyStubRepository{}
+		controller := Controller{Repository: &spyStubRepository}
 
-		assert.Equal(t, 1, spyStubRepository.UpdateInvocation)
-		assert.Equal(t, uint(1), spyStubRepository.UpdateArgumentId)
-		assert.Equal(t, "Sam", spyStubRepository.UpdateArgumentEmployee.Name)
-		assert.Equal(t, "1", spyStubRepository.UpdateArgumentEmployee.Salary)
-		assert.Equal(t, 40, spyStubRepository.UpdateArgumentEmployee.Age)
+		controller.UpdateEmployee(context)
+
+		assert.Equal(suite.T(), 1, spyStubRepository.UpdateInvocation)
+		assert.Equal(suite.T(), uint(1), spyStubRepository.UpdateArgumentId)
+		assert.Equal(suite.T(), "Sam", spyStubRepository.UpdateArgumentEmployee.Name)
+		assert.Equal(suite.T(), "1", spyStubRepository.UpdateArgumentEmployee.Salary)
+		assert.Equal(suite.T(), 40, spyStubRepository.UpdateArgumentEmployee.Age)
 	})
 
-	t.Run("UpdateEmployee returns status ok with no content", func(t *testing.T) {
-		e := echo.New()
+	suite.Run("invokes Repository::Update with given id and employee request body [testify]", func() {
 		employee := dto.EmployeeRequest{Name: "Sam", Salary: "1", Age: 40}
 		postJson, _ := json.Marshal(employee)
-		request := httptest.NewRequest(http.MethodPut, "/employee", bytes.NewReader(postJson))
-		request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		response := httptest.NewRecorder()
-		c := e.NewContext(request, response)
-		c.SetPath("/:id")
-		c.SetParamNames("id")
-		c.SetParamValues("1")
+		context, _ := NewEchoContext(http.MethodPut, "/employee", bytes.NewReader(postJson))
+		context.SetPath("/:id")
+		context.SetParamNames("id")
+		context.SetParamValues("199")
 
-		spyStubRepository := &testdoubles.SpyStubRepository{}
-		controller := Controller{Repository: spyStubRepository}
-		controller.UpdateEmployee(c)
+		mockRepository := testdoubles.MockRepository{}
+		mockRepository.On("Update", uint(199), employee).Return(model.Employee{}, nil)
+		controller := Controller{Repository: &mockRepository}
 
-		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Equal(t, 0, response.Body.Len())
+		controller.UpdateEmployee(context)
+
+		mockRepository.AssertExpectations(suite.T())
 	})
+}
+
+func NewEchoContext(method, url string, requestBody io.Reader) (echo.Context, *httptest.ResponseRecorder) {
+	e := echo.New()
+	request := httptest.NewRequest(method, url, requestBody)
+	request.Header.Add(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	recorder := httptest.NewRecorder()
+	c := e.NewContext(request, recorder)
+	return c, recorder
 }
